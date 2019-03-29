@@ -15,8 +15,10 @@ from pyang import statements
 from pyang import types
 from pyang import error
 
+
 def pyang_plugin_init():
     plugin.register_plugin(JSONSchemaPlugin())
+
 
 class JSONSchemaPlugin(plugin.PyangPlugin):
     def add_output_format(self, fmts):
@@ -34,7 +36,7 @@ class JSONSchemaPlugin(plugin.PyangPlugin):
             optparse.make_option('--jsonschema-title',
                                  dest='schema_title',
                                  help='JSON Schema title'),
-            ]
+        ]
 
         group = optparser.add_option_group("JSON Schema-specific options")
         group.add_options(optlist)
@@ -73,6 +75,7 @@ class JSONSchemaPlugin(plugin.PyangPlugin):
         result["properties"].update(schema)
 
         fd.write(json.dumps(result, indent=2))
+
 
 def find_stmt_by_path(module, path):
     logging.debug("in find_stmt_by_path with: %s %s path: %s", module.keyword, module.arg, path)
@@ -118,6 +121,7 @@ def produce_schema(root_stmt):
                           child.arg)
     return result
 
+
 def produce_type(type_stmt):
     logging.debug("In produce_type with: %s %s", type_stmt.keyword, type_stmt.arg)
     type_id = type_stmt.arg
@@ -153,6 +157,7 @@ def produce_leaf(stmt):
 
     return {arg: type_str}
 
+
 def produce_list(stmt):
     logging.debug("in produce_list: %s %s", stmt.keyword, stmt.arg)
     arg = qualify_name(stmt)
@@ -175,6 +180,7 @@ def produce_list(stmt):
     logging.debug("In produce_list for %s, returning %s", stmt.arg, result)
     return result
 
+
 def produce_leaf_list(stmt):
     logging.debug("in produce_leaf_list: %s %s", stmt.keyword, stmt.arg)
     arg = qualify_name(stmt)
@@ -190,6 +196,7 @@ def produce_leaf_list(stmt):
         result = {arg: {"type": "array", "items": [{"type": "string"}]}}
     return result
 
+
 def produce_container(stmt):
     logging.debug("in produce_container: %s %s", stmt.keyword, stmt.arg)
     arg = qualify_name(stmt)
@@ -197,7 +204,7 @@ def produce_container(stmt):
     if stmt.parent.keyword != "list":
         result = {arg: {"type": "object", "properties": {}}}
     else:
-        result = {"type": "object", "properties": {arg:{"type": "object", "properties": {}}}}
+        result = {"type": "object", "properties": {arg: {"type": "object", "properties": {}}}}
 
     if hasattr(stmt, 'i_children'):
         for child in stmt.i_children:
@@ -211,6 +218,7 @@ def produce_container(stmt):
                 logging.debug("keyword miss on: %s %s", child.keyword, child.arg)
     logging.debug("In produce_container, returning %s", result)
     return result
+
 
 def produce_choice(stmt):
     logging.debug("in produce_choice: %s %s", stmt.keyword, stmt.arg)
@@ -238,13 +246,14 @@ def produce_choice(stmt):
     logging.debug("In produce_choice, returning %s", result)
     return result
 
+
 producers = {
     # "module":     produce_module,
-    "container":    produce_container,
-    "list":         produce_list,
-    "leaf-list":    produce_leaf_list,
-    "leaf":         produce_leaf,
-    "choice":       produce_choice,
+    "container": produce_container,
+    "list": produce_list,
+    "leaf-list": produce_leaf_list,
+    "leaf": produce_leaf,
+    "choice": produce_choice,
 }
 
 _numeric_type_trans_tbl = {
@@ -257,7 +266,8 @@ _numeric_type_trans_tbl = {
     "uint16": ("number", None),
     "uint32": ("integer", "uint32"),
     "uint64": ("integer", "uint64")
-    }
+}
+
 
 def numeric_type_trans(dtype):
     trans_type = _numeric_type_trans_tbl[dtype][0]
@@ -265,28 +275,33 @@ def numeric_type_trans(dtype):
     # tformat = _numeric_type_trans_tbl[dtype][1]
     return {"type": trans_type}
 
+
 def string_trans(stmt):
     logging.debug("in string_trans with stmt %s %s", stmt.keyword, stmt.arg)
     result = {"type": "string"}
     return result
 
+
 def enumeration_trans(stmt):
     logging.debug("in enumeration_trans with stmt %s %s", stmt.keyword, stmt.arg)
-    result = {"properties": {"type": {"enum": []}}}
+    result = {"type": "string", "enum": []}
     for enum in stmt.search("enum"):
-        result["properties"]["type"]["enum"].append(enum.arg)
+        result["enum"].append(enum.arg)
     logging.debug("In enumeration_trans for %s, returning %s", stmt.arg, result)
     return result
+
 
 def bits_trans(stmt):
     logging.debug("in bits_trans with stmt %s %s", stmt.keyword, stmt.arg)
     result = {"type": "string"}
     return result
 
+
 def boolean_trans(stmt):
     logging.debug("in boolean_trans with stmt %s %s", stmt.keyword, stmt.arg)
     result = {"type": "boolean"}
     return result
+
 
 def empty_trans(stmt):
     logging.debug("in empty_trans with stmt %s %s", stmt.keyword, stmt.arg)
@@ -294,6 +309,7 @@ def empty_trans(stmt):
     # Likely needs more/other work per:
     #  https://tools.ietf.org/html/draft-ietf-netmod-yang-json-10#section-6.9
     return result
+
 
 def union_trans(stmt):
     logging.debug("in union_trans with stmt %s %s", stmt.keyword, stmt.arg)
@@ -303,31 +319,36 @@ def union_trans(stmt):
         result["oneOf"].append(member_type)
     return result
 
+
 def instance_identifier_trans(stmt):
     logging.debug("in instance_identifier_trans with stmt %s %s", stmt.keyword, stmt.arg)
     result = {"type": "string"}
     return result
 
+
 def leafref_trans(stmt):
     logging.debug("in leafref_trans with stmt %s %s", stmt.keyword, stmt.arg)
-    # TODO: Need to resolve i_leafref_ptr here 
+    # TODO: Need to resolve i_leafref_ptr here
     result = {"type": "string"}
     return result
 
+
 _other_type_trans_tbl = {
     # https://tools.ietf.org/html/draft-ietf-netmod-yang-json-02#section-6
-    "string":                   string_trans,
-    "enumeration":              enumeration_trans,
-    "bits":                     bits_trans,
-    "boolean":                  boolean_trans,
-    "empty":                    empty_trans,
-    "union":                    union_trans,
-    "instance-identifier":      instance_identifier_trans,
-    "leafref":                  leafref_trans
+    "string": string_trans,
+    "enumeration": enumeration_trans,
+    "bits": bits_trans,
+    "boolean": boolean_trans,
+    "empty": empty_trans,
+    "union": union_trans,
+    "instance-identifier": instance_identifier_trans,
+    "leafref": leafref_trans
 }
+
 
 def other_type_trans(dtype, stmt):
     return _other_type_trans_tbl[dtype](stmt)
+
 
 def qualify_name(stmt):
     # From: draft-ietf-netmod-yang-json
@@ -335,11 +356,11 @@ def qualify_name(stmt):
     # top-level JSON object, and then also whenever the namespaces of the
     # data node and its parent node are different.  In all other cases, the
     # simple form of the member name MUST be used.
-    if stmt.parent.parent is None: # We're on top
+    if stmt.parent.parent is None:  # We're on top
         pfx = stmt.i_module.arg
         logging.debug("In qualify_name with: %s %s on top", stmt.keyword, stmt.arg)
         return pfx + ":" + stmt.arg
-    if stmt.top.arg != stmt.parent.top.arg: # Parent node is different
+    if stmt.top.arg != stmt.parent.top.arg:  # Parent node is different
         pfx = stmt.top.arg
         logging.debug("In qualify_name with: %s %s and parent is different", stmt.keyword, stmt.arg)
         return pfx + ":" + stmt.arg
